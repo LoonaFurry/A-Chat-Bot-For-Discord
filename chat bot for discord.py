@@ -1,17 +1,25 @@
-import os
 import discord
 from discord.ext import commands
+from collections import defaultdict, deque
 import asyncio
-import google.generativeai as genai
-import json
+import datetime
+import re
+import emoji
+import aiohttp
+from dotenv import load_dotenv
+from fuzzywuzzy import fuzz
+import unicodedata
 import logging
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
+# Setup logging
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Configuration - Use environment variables for security
 DISCORD_BOT_TOKEN = ('your-token-here')
 GEMINI_API_KEY = ('your-key-here')
+
+if not DISCORD_BOT_TOKEN or not GEMINI_API_KEY:
+    raise ValueError("DISCORD_BOT_TOKEN or GEMINI_API_KEY not set in environment variables")
 
 # Configure the Gemini API
 genai.configure(api_key=GEMINI_API_KEY)
@@ -19,11 +27,11 @@ model = genai.GenerativeModel("gemini-1.5-flash")
 
 # Define intents
 intents = discord.Intents.default()
-intents.messages = True  # Enable message events
-intents.message_content = True  # Enable access to message content
+intents.messages = True
+intents.message_content = True
 
 # Default response if Gemini API fails
-DEFAULT_RESPONSE = "Üzgünüm, bu konuda bir yanıt bulamadım."
+DEFAULT_RESPONSE = "Sorry, I couldn't answer this question."
 
 # File to store chat history
 HISTORY_FILE = 'chat_history.json'
@@ -33,14 +41,14 @@ def load_chat_history():
     if os.path.exists(HISTORY_FILE):
         try:
             with open(HISTORY_FILE, 'r') as file:
-                if os.stat(HISTORY_FILE).st_size == 0:  # Check if file is empty
+                if os.stat(HISTORY_FILE).st_size == 0:
                     return {}
                 return json.load(file)
         except json.JSONDecodeError:
-            print("Hata: JSON çözümleme hatası. Dosya bozulmuş olabilir.")
+            logging.error("JSON decode error: file might be corrupted")
             return {}
         except Exception as e:
-            print(f"Chat geçmişini yüklerken hata: {e}")
+            logging.error(f"Error loading chat history: {e}")
             return {}
     return {}
 
@@ -50,16 +58,23 @@ def save_chat_history(chat_history):
         with open(HISTORY_FILE, 'w') as file:
             json.dump(chat_history, file, indent=4)
     except Exception as e:
-        print(f"Chat geçmişini kaydederken hata: {e}")
+        logging.error(f"Error saving chat history: {e}")
 
 # Initialize chat history
 chat_history = load_chat_history()
 
 bot = commands.Bot(command_prefix='!', intents=intents)
 
+status_list = [
+    discord.Game(name="LolbitFurry's Chat Bot"),
+    discord.Activity(type=discord.ActivityType.playing, name="I'm Ready To Chat With Fluffy Buddies ^w^"),
+    discord.Activity(type=discord.ActivityType.listening, name="Foxy Land"),
+    discord.Activity(type=discord.ActivityType.watching, name="OwO What's This?"),
+]
 @bot.event
 async def on_ready():
-    print(f'Giriş yapıldı: {bot.user}')
+    logging.info(f'Logged in as {bot.user}')
+    change_status.start()
 
 @bot.event
 async def on_message(message):
@@ -68,25 +83,19 @@ async def on_message(message):
 
     user_id = str(message.author.id)
 
-    # Initialize user chat history if not already present
     if user_id not in chat_history:
         chat_history[user_id] = []
 
-    # Store the new message in chat history
     chat_history[user_id].append(message.content)
-
-    # Save the updated chat history
     save_chat_history(chat_history)
 
-    # Check if the bot is mentioned in the message
     if bot.user.mentioned_in(message):
         content = message.content
-        mention = message.author.mention  # Mention the user in the response
+        mention = message.author.mention
 
-        # Append chat history to the prompt
         history_text = "\n".join(chat_history[user_id])
         prompt = (
-            f"You Are a Furry Fox Young And You're Lovely And Kind, Patient, Cute, Understanding. "
+            f"You Are a Furry Young Fox And You're Lovely And Kind, Patient, Cute, Understanding. "
             f"Remember all previous chats. Here is the chat history:\n{history_text}\n"
             f"Respond to the following message from {mention}: {content}"
         )
@@ -96,27 +105,24 @@ async def on_message(message):
                 response = await ask_gemini(prompt)
                 await message.channel.send(f"{mention} {response}")
             except Exception as e:
-                logging.error(f"Hata işlenirken: {e}")
+                logging.error(f"Error processing message: {e}")
                 await message.channel.send(f"{mention} Bir hata oluştu. Lütfen daha sonra tekrar deneyin.")
-        else:
-            return
 
 async def ask_gemini(prompt):
     try:
-        # Use the Gemini API to generate a response
         response = await asyncio.get_event_loop().run_in_executor(None, lambda: model.generate_content(prompt))
-        # Extract response text
         if response and hasattr(response, 'text'):
             return response.text
         else:
-            logging.info("API Yanıtı: %s", response)
+            logging.info("API response: %s", response)
             return DEFAULT_RESPONSE
     except Exception as e:
-        logging.error("API İstisnası: %s", e)
+        logging.error("API exception: %s", e)
         return DEFAULT_RESPONSE
 
+@tasks.loop(seconds=60)
+async def change_status():
+    await bot.change_presence(activity=status_list[change_status.current_loop % len(status_list)])
+
 if __name__ == "__main__":
-    if not DISCORD_BOT_TOKEN or not GEMINI_API_KEY:
-        print("Hata: DISCORD_BOT_TOKEN veya GEMINI_API_KEY için ortam değişkenleri ayarlanmamış.")
-    else:
-        bot.run(DISCORD_BOT_TOKEN)
+    bot.run(DISCORD_BOT_TOKEN)
