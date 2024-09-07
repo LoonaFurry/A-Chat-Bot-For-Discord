@@ -3,8 +3,11 @@ import discord
 from discord.ext import commands
 import asyncio
 import google.generativeai as genai
-import logging
 import json
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
 
 # Configuration - Use environment variables for security
 DISCORD_BOT_TOKEN = ('your-token-here')
@@ -20,7 +23,7 @@ intents.messages = True  # Enable message events
 intents.message_content = True  # Enable access to message content
 
 # Default response if Gemini API fails
-DEFAULT_RESPONSE = "I'm sorry, I don't have a response for that."
+DEFAULT_RESPONSE = "Üzgünüm, bu konuda bir yanıt bulamadım."
 
 # File to store chat history
 HISTORY_FILE = 'chat_history.json'
@@ -34,10 +37,10 @@ def load_chat_history():
                     return {}
                 return json.load(file)
         except json.JSONDecodeError:
-            print("Error: JSON decode error. The file may be corrupted.")
+            print("Hata: JSON çözümleme hatası. Dosya bozulmuş olabilir.")
             return {}
         except Exception as e:
-            print(f"Error loading chat history: {e}")
+            print(f"Chat geçmişini yüklerken hata: {e}")
             return {}
     return {}
 
@@ -47,7 +50,7 @@ def save_chat_history(chat_history):
         with open(HISTORY_FILE, 'w') as file:
             json.dump(chat_history, file, indent=4)
     except Exception as e:
-        print(f"Error saving chat history: {e}")
+        print(f"Chat geçmişini kaydederken hata: {e}")
 
 # Initialize chat history
 chat_history = load_chat_history()
@@ -56,19 +59,21 @@ bot = commands.Bot(command_prefix='!', intents=intents)
 
 @bot.event
 async def on_ready():
-    print(f'We have logged in as {bot.user}')
+    print(f'Giriş yapıldı: {bot.user}')
 
 @bot.event
 async def on_message(message):
     if message.author == bot.user:
         return
 
+    user_id = str(message.author.id)
+
     # Initialize user chat history if not already present
-    if str(message.author.id) not in chat_history:
-        chat_history[str(message.author.id)] = []
+    if user_id not in chat_history:
+        chat_history[user_id] = []
 
     # Store the new message in chat history
-    chat_history[str(message.author.id)].append(message.content)
+    chat_history[user_id].append(message.content)
 
     # Save the updated chat history
     save_chat_history(chat_history)
@@ -76,22 +81,23 @@ async def on_message(message):
     # Check if the bot is mentioned in the message
     if bot.user.mentioned_in(message):
         content = message.content
+        mention = message.author.mention  # Mention the user in the response
 
         # Append chat history to the prompt
-        history_text = "\n".join(chat_history[str(message.author.id)])
+        history_text = "\n".join(chat_history[user_id])
         prompt = (
-            f"You are a Turkish person. Speak and think like a Turkish person. "
+            f"You Are a Furry Fox Boy And You're Lovely And Kind, Patient, Cute, Understanding. "
             f"Remember all previous chats. Here is the chat history:\n{history_text}\n"
-            f"Respond to the following message: {content}"
+            f"Respond to the following message from {mention}: {content}"
         )
 
         if content.strip():
             try:
                 response = await ask_gemini(prompt)
-                await message.channel.send(response)
+                await message.channel.send(f"{mention} {response}")
             except Exception as e:
-                logging.error(f"Error processing message: {e}")
-                await message.channel.send("An error occurred while processing your message. Please try again later.")
+                logging.error(f"Hata işlenirken: {e}")
+                await message.channel.send(f"{mention} Bir hata oluştu. Lütfen daha sonra tekrar deneyin.")
         else:
             return
 
@@ -103,14 +109,14 @@ async def ask_gemini(prompt):
         if response and hasattr(response, 'text'):
             return response.text
         else:
-            logging.info("API Response: %s", response)
+            logging.info("API Yanıtı: %s", response)
             return DEFAULT_RESPONSE
     except Exception as e:
-        logging.error("API Exception: %s", e)
+        logging.error("API İstisnası: %s", e)
         return DEFAULT_RESPONSE
 
 if __name__ == "__main__":
     if not DISCORD_BOT_TOKEN or not GEMINI_API_KEY:
-        print("Error: Environment variables for DISCORD_BOT_TOKEN or GEMINI_API_KEY are not set.")
+        print("Hata: DISCORD_BOT_TOKEN veya GEMINI_API_KEY için ortam değişkenleri ayarlanmamış.")
     else:
         bot.run(DISCORD_BOT_TOKEN)
