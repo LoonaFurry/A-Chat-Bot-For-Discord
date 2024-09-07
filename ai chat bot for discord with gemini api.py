@@ -1,15 +1,10 @@
 import discord
-from discord.ext import commands
-from collections import defaultdict, deque
+from discord.ext import commands, tasks
 import asyncio
-import datetime
-import re
-import emoji
-import aiohttp
-from dotenv import load_dotenv
-from fuzzywuzzy import fuzz
-import unicodedata
+import json
+import os
 import logging
+import google.generativeai as genai
 
 # Setup logging
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
