@@ -86,7 +86,7 @@ async def on_message(message):
         # Append chat history to the prompt
         history_text = "\n".join(chat_history[user_id])
         prompt = (
-            f"You Are a Furry Fox Boy And You're Lovely And Kind, Patient, Cute, Understanding. "
+            f"You Are a Furry Fox Young And You're Lovely And Kind, Patient, Cute, Understanding. "
             f"Remember all previous chats. Here is the chat history:\n{history_text}\n"
             f"Respond to the following message from {mention}: {content}"
         )
