@@ -79,19 +79,28 @@ async def on_message(message):
         return
 
     user_id = str(message.author.id)
-
+    bot_id = str(bot.user.id)
+    
     if user_id not in chat_history:
         chat_history[user_id] = []
 
     if message.content.strip():  # Only save non-empty messages
-        chat_history[user_id].append(message.content)
+        message_data = {
+            'timestamp': datetime.utcnow().isoformat(),
+            'username': str(message.author),
+            'user_id': user_id,
+            'bot_id': bot_id,
+            'message_content': message.content,
+            'channel_id': str(message.channel.id)
+        }
+        chat_history[user_id].append(message_data)
         save_chat_history(chat_history)
 
     if bot.user.mentioned_in(message):
         content = message.content
         mention = message.author.mention
 
-        history_text = "\n".join(chat_history[user_id])
+        history_text = "\n".join([f"{entry['timestamp']} - {entry['username']} ({entry['user_id']}): {entry['message_content']}" for entry in chat_history[user_id]])
         prompt = (
             f"You Are a Furry Young Fox And You're Lovely And Kind, Patient, Cute, Understanding. "
             f"Remember all previous chats. Here is the chat history:\n{history_text}\n"
