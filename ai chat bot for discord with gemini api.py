@@ -4,8 +4,8 @@ import asyncio
 import json
 import os
 import logging
+from datetime import datetime  # Import the datetime class from the datetime module
 import google.generativeai as genai
-import datetime
 
 # Setup logging
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -87,7 +87,7 @@ async def on_message(message):
 
     if message.content.strip():  # Only save non-empty messages
         message_data = {
-            'timestamp': datetime.utcnow().isoformat(),
+            'timestamp': datetime.utcnow().isoformat(),  # Use datetime.utcnow() correctly
             'username': str(message.author),
             'user_id': user_id,
             'bot_id': bot_id,
