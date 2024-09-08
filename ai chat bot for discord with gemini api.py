@@ -28,8 +28,9 @@ intents.message_content = True
 # Default response if Gemini API fails
 DEFAULT_RESPONSE = "Sorry, I couldn't answer this question."
 
-# File to store chat history
-HISTORY_FILE = 'chat_history.json'
+# Determine the file path for the chat history JSON file
+current_dir = os.path.dirname(os.path.abspath(__file__))
+HISTORY_FILE = os.path.join(current_dir, 'chat_history.json')
 
 # Load chat history from file
 def load_chat_history():
@@ -66,6 +67,7 @@ status_list = [
     discord.Activity(type=discord.ActivityType.listening, name="Foxy Land"),
     discord.Activity(type=discord.ActivityType.watching, name="OwO What's This?"),
 ]
+
 @bot.event
 async def on_ready():
     logging.info(f'Logged in as {bot.user}')
@@ -81,8 +83,9 @@ async def on_message(message):
     if user_id not in chat_history:
         chat_history[user_id] = []
 
-    chat_history[user_id].append(message.content)
-    save_chat_history(chat_history)
+    if message.content.strip():  # Only save non-empty messages
+        chat_history[user_id].append(message.content)
+        save_chat_history(chat_history)
 
     if bot.user.mentioned_in(message):
         content = message.content
