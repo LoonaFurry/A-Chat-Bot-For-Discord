@@ -5,6 +5,7 @@ import json
 import os
 import logging
 import google.generativeai as genai
+import datetime
 
 # Setup logging
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
