@@ -29,8 +29,11 @@ intents.message_content = True
 # Default response if Gemini API fails
 DEFAULT_RESPONSE = "Sorry, I couldn't answer this question."
 
-# File to store chat history
-HISTORY_FILE = 'chat_history.json'
+# Determine the directory where the code is located
+CODE_DIR = os.path.dirname(__file__)
+
+# File to store chat history, located in the code's directory
+HISTORY_FILE = os.path.join(CODE_DIR, 'chat_history.json')
 
 # Load chat history from file
 def load_chat_history():
@@ -48,14 +51,14 @@ def load_chat_history():
             return {}
     return {}
 
-# Save chat history to file
+# Save chat history to file with UTF-8 encoding
 def save_chat_history(chat_history):
     try:
-        with open(HISTORY_FILE, 'w') as file:
-            json.dump(chat_history, file, indent=4)
+        with open(HISTORY_FILE, 'w', encoding='utf-8') as file:  # Specify UTF-8 encoding
+            json.dump(chat_history, file, indent=4, ensure_ascii=False)  # Ensure ASCII characters are not escaped
     except Exception as e:
         logging.error(f"Error saving chat history: {e}")
-
+        
 # Initialize chat history
 chat_history = load_chat_history()
 
@@ -83,12 +86,17 @@ async def on_message(message):
     if user_id not in chat_history:
         chat_history[user_id] = []
 
+    # Ensure chat_history[user_id] is a list of dictionaries
+    if not isinstance(chat_history[user_id], list):
+        chat_history[user_id] = []
+
     chat_history[user_id].append({
-        'message': message.content,
+        'message': message.content,  # Emojis are included in the message content
         'timestamp': datetime.now(timezone.utc).isoformat(),
         'user_name': str(message.author),
         'user_id': user_id,
-        'bot_id': str(bot.user.id)
+        'bot_id': str(bot.user.id),
+        'bot_name': str(bot.user.name)
     })
     save_chat_history(chat_history)
 
@@ -96,7 +104,8 @@ async def on_message(message):
         content = message.content
         mention = message.author.mention
 
-        history_text = "\n".join(entry['message'] for entry in chat_history[user_id])
+        # Generate history text from the stored messages
+        history_text = "\n".join(entry['message'] for entry in chat_history[user_id] if isinstance(entry, dict) and 'message' in entry)
         prompt = (
             f"You Are a Furry Young Fox And You're Lovely And Kind, Patient, Cute, Understanding. "
             f"Remember all previous chats. Here is the chat history:\n{history_text}\n"
